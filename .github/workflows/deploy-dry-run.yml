@@ -8,6 +8,7 @@ on:
       - "nginx/**"
       - "docker-compose.yml"
       - "docker-compose.dev.yml"
+      - "ansible/**"
 
 jobs:
   validate:
@@ -28,3 +29,11 @@ jobs:
           ruff check .
         working-directory: backend
         continue-on-error: true
+
+      - name: Install Ansible
+        run: sudo apt-get update && sudo apt-get install -y ansible
+
+      - name: Ansible Syntax Check
+        run: ansible-playbook ansible/playbook.yml --syntax-check
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
