@@ -29,7 +29,7 @@ server {
     resolver 127.0.0.11 valid=30s;
 
     # フロントエンドへのプロキシ
-    location / {
+    location /news {
         set $upstream_frontend frontend;
         proxy_pass http://$upstream_frontend:3000;
         proxy_http_version 1.1;
@@ -39,13 +39,5 @@ server {
         proxy_cache_bypass $http_upgrade;
     }
 
-    # バックエンドAPIへのプロキシ
-    location /api/ {
-        set $upstream_backend backend;
-        proxy_pass http://$upstream_backend:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
+
 }
