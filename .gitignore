@@ -25,3 +25,7 @@ Thumbs.db
 
 # Cookies
 backend/cookies.txt
+cookies.txt
+
+# Database
+backend/news.db
