@@ -137,3 +137,9 @@ variable "ssh_public_key" {
   type        = string
   default     = ""
 }
+
+variable "domain_name" {
+  description = "Domain name for the application (e.g., news-check.example.com)"
+  type        = string
+  default     = ""
+}
