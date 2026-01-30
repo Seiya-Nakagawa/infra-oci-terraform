@@ -12,7 +12,7 @@ class Summarizer:
     def __init__(self, api_key: str):
         self.client = genai.Client(api_key=api_key)
         # 現時点で動作とクォータが確認できた gemini-2.0-flash をデフォルトに使用
-        self.model_id = os.getenv("GEMINI_MODEL", "gemini-3-flash")
+        self.model_id = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
 
     def summarize(self, transcript: str) -> Dict:
         """
