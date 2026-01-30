@@ -12,7 +12,7 @@ class Summarizer:
     def __init__(self, api_key: str):
         self.client = genai.Client(api_key=api_key)
         # 現時点で動作とクォータが確認できた gemini-2.0-flash をデフォルトに使用
-        self.model_id = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+        self.model_id = os.getenv("GEMINI_MODEL", "gemini-3-flash")
 
     def summarize(self, transcript: str) -> Dict:
         """
@@ -117,13 +117,18 @@ class Summarizer:
         if isinstance(result, dict) and "summary" in result:
             # エラーメッセージが返ってきた場合
             error_msg = result.get("summary", "バッチ要約に失敗しました")
-            return [{"title": a.get("title", ""), "summary": error_msg} for a in articles]
+            return [
+                {"title": a.get("title", ""), "summary": error_msg} for a in articles
+            ]
 
         if isinstance(result, list):
             return result
 
         # 予期しない形式の場合
-        return [{"title": a.get("title", ""), "summary": "要約の取得に失敗しました"} for a in articles]
+        return [
+            {"title": a.get("title", ""), "summary": "要約の取得に失敗しました"}
+            for a in articles
+        ]
 
     def _generate_summary(self, prompt: str) -> Dict:
         """Gemini APIを呼び出して要約を生成する共通処理 (リトライ機能付き)"""
@@ -230,7 +235,9 @@ class Summarizer:
                             ),
                         )
                         if response.text is None:
-                            raise Exception("Gemini returned empty response (None) even on retry.")
+                            raise Exception(
+                                "Gemini returned empty response (None) even on retry."
+                            )
                         return json.loads(response.text)
                     except Exception as e2:
                         error_str = f"{error_str} | Retry failed: {str(e2)}"
