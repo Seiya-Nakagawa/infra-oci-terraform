@@ -2,8 +2,8 @@
 
 ## 1. システム概要
 
-本システム「News Check」は、YouTube上のニュース動画を自動収集・要約し、ユーザーが短時間で効率的に情報を摂取できるWebサービスです。
-「完全自動化されたバックエンド処理」を特徴とします。
+本システム「News Check」は、主要なニュースソース（Google News）からニュース記事を自動収集・要約し、ユーザーが短時間で効率的に情報を摂取できるWebサービスです。
+「完全自動化されたバックエンド処理」と「AIによる日別ダイジェスト生成」を特徴とします。
 
 ## 2. システムアーキテクチャ
 
@@ -16,6 +16,7 @@
 * **インフラストラクチャ**:
   * **クラウドサービス**: **Oracle Cloud Infrastructure (Always Free)**
   * **インスタンスタイプ**: VM.Standard.A1.Flex (**4 OCPU, 24GB RAM**)
+  * **ドメイン**: **technohonesty.com**
     * *選定理由*: 無料枠内で利用可能な最大スペックであり、リッチな検証環境として最適。
   * **OS**: Oracle Linux 9 または Ubuntu 22.04/24.04 LTS (ARM64)
 * **アプリケーション構成 (Docker Compose)**:
@@ -36,19 +37,22 @@
 
 ```mermaid
 graph TD
-    User[ユーザー] -->|HTTPS| Nginx[Webサーバー / Nginx]
+    User[ユーザー] -->|HTTPS /news| Nginx
 
-    subgraph Dockerコンテナ群
-        Nginx -->|振り分け| NextJS[フロントエンド / Next.js]
-        Nginx -->|APIリクエスト| Backend[バックエンドAPI / FastAPI]
-        Backend -->|クエリ| DB[(PostgreSQL)]
+    subgraph OCI ["OCIインスタンス (VM.Standard.A1.Flex)"]
+        Cron[Host Cron] -->|POSTトリガー| Backend
+
+        subgraph Dockerコンテナ群
+            Nginx[リバースプロキシ / Nginx] -->|振り分け| NextJS[フロントエンド / Next.js]
+            Nginx -->|APIリクエスト| Backend[バックエンドAPI / FastAPI]
+            Backend -->|クエリ| DB[(PostgreSQL)]
+        end
     end
 
-    Scheduler[スケジューラ] -->|トリガー| Job[収集・要約ジョブ]
-    Job -->|検索| YouTube[YouTube Data API]
-    Job -->|字幕取得| Transcript[Transcript取得]
-    Job -->|生成| Gemini[Gemini API]
-    Job -->|保存| DB
+    Backend -->|RSS取得| GNews[Google News RSS]
+    Backend -->|バッチ要約| Gemini[Gemini API]
+
+    style OCI fill:#fff4dd,stroke:#d3d3d3,stroke-width:2px
 ```
 
 ## 3. 機能設計
@@ -57,12 +61,11 @@ graph TD
 
 | コンポーネント | 機能名 | 詳細 |
 | --- | --- | --- |
-| **Collector** | 動画検索 | **ANNnewsCH** の動画リストから、タイトルが **"【ライブ】mm/dd"** に一致する動画を検索。 |
-| | フィルタリング | 指定日付のアーカイブ動画（VOD）のみを対象とする。 |
-| **Extractor** | 字幕取得 | 選定された動画の字幕データ（Transcript）を取得・整形する。 |
-| **Summarizer** | AI要約 | Gemini APIを使用し、字幕テキストから構造化された要約（タイトル、重要ポイント、詳細）を生成。 |
-| **API Server** | データ提供 | フロントエンドからのリクエストに対し、保存されたニュースデータ（動画情報＋要約）をJSON形式で返却。 |
-| **Scheduler** | 定期実行 | 指定されたスケジュール（例: 毎朝7時）に収集・要約ジョブを起動。 |
+| **Collector** | ニュース取得 | **Google News RSS** から最新記事のタイトル、概要、リンクを取得。 |
+| | 重複チェック | 既にデータベースに存在する記事（URL基準）を除外。 |
+| **Summarizer** | AI要約 | Gemini APIを使用し、複数記事を1回の呼び出しで要約（バッチ要約）し、ダイジェスト形式に整形。 |
+| **API Server** | データ提供 | フロントエンドからのリクエストに対し、日別ダイジェスト（DailyDigest）をJSON形式で返却。 |
+| **Scheduler** | 定期実行 | Host Cronにより毎時 `collect` APIを叩き、最新ニュースを収集・更新。 |
 
 ### 3.2. フロントエンド機能 (UI)
 
@@ -90,29 +93,24 @@ graph TD
 
 ```mermaid
 erDiagram
-    CHANNELS ||--o{ VIDEOS : "posts"
-    VIDEOS ||--o{ KEY_POINTS : "has"
-
-    CHANNELS {
-        varchar channel_id PK "チャンネルID"
-        varchar name "チャンネル名"
-        varchar url "チャンネルURL"
-    }
-
-    VIDEOS {
-        varchar youtube_id PK "YouTube ID"
-        varchar title "タイトル"
-        varchar channel_id FK "チャンネルID"
-        text transcript "字幕(全文)"
-        text summary "要約(全文)"
-        timestamp published_at "公開日時"
-        varchar status "処理ステータス"
-    }
-
-    KEY_POINTS {
+    DAILY_DIGESTS {
         integer id PK "内部ID"
-        varchar youtube_id FK "YouTube ID"
-        text point "重要点"
+        date date UK "対象日"
+        jsonb headlines "ダイジェスト内容 (JSONB)"
+        timestamp created_at "作成日時"
+        timestamp updated_at "更新日時"
+    }
+    ARTICLES {
+        varchar article_id PK "記事ID"
+        varchar title "タイトル"
+        varchar link "URL"
+        text content "本文"
+        text summary "要約"
+        timestamp published_at "公開日時"
+    }
+    VIDEOS {
+        varchar youtube_id PK "YouTube ID (旧)"
+        varchar title "タイトル"
     }
 ```
 
@@ -148,28 +146,24 @@ erDiagram
 
 | テーブル名 | カラム名 | 用途 |
 | :--- | :--- | :--- |
-| **VIDEOS** | `channel_id` | チャンネル情報との結合 (JOIN) 高速化 |
-| **VIDEOS** | `published_at` | 日付指定でのニュース検索、ソート高速化 |
-| **VIDEOS** | `status` | 未処理/処理済み動画のフィルタリング高速化 |
-| **KEY_POINTS** | `youtube_id` | 動画情報との結合 (JOIN) 高速化 |
+| **DAILY_DIGESTS** | `date` | 日付指定での高速検索 (Unique Index) |
+| **ARTICLES** | `published_at` | ソートおよび期間指定検索の高速化 |
+| **ARTICLES** | `status` | 未処理/処理済み記事のフィルタリング高速化 |
 
 *注: 各テーブルの主キー (PK) には、RDBMSにより自動的にインデックスが作成されます。*
 
 ### 3.4. API設計 (簡易)
 
-* **GET /news/daily/{date}**: 指定日のニュース一覧と要約を取得。
-* **GET /news/video/{id}**: 特定の動画の詳細情報を取得。
+* **GET /api/news/daily**: 指定日の日別ダイジェスト（要約一覧）を取得。
+* **POST /api/news/collect**: 外部RSSからニュースを取得し、要約を生成・更新する。
 
 ## 4. 外部インターフェース
 
-1. **YouTube Data API v3**
-   * 用途: 動画の検索、メタデータ取得。
-   * 制約: APIクォータ（1日あたりのリクエスト制限）に注意が必要。
-2. **YouTube Transcript (非公式APIまたは代替手段)**
-   * 用途: 動画の字幕データ取得。公式APIで取得できない場合はライブラリ等を使用。
-3. **Google Gemini API**
-   * 用途: テキスト要約、構造化。
-   * モデル: `gemini-1.5-flash` (高速・低コスト) または `gemini-1.5-pro` (高精度) を想定。
+1. **Google News RSS**
+   * 用途: トップニュース、ビジネス、テクノロジー等の最新記事取得。
+2. **Google Gemini API**
+   * 用途: 複数記事のバッチ要約。
+   * モデル:  `gemini-3-flash-preview` (高速・低コスト)※初期開発時点
 
 ## 5. 技術スタックまとめ
 
@@ -187,7 +181,7 @@ Ansible と Docker を活用し、以下のフローで構築を行う。
 
 1. **OCI インスタンス作成**: 手動またはTerraformでARMインスタンス(24GB RAM)を作成。
 2. **プロビジョニング (Ansible)**:
-    * Playbookを実行し、Docker環境とプロジェクトディレクトリ (`/opt/news-app`) を作成。
+    * Playbookを実行し、Docker環境とプロジェクトディレクトリ (`~/git/news_check`) を作成。
     * Ansible Vaultで暗号化された機密情報（DBパスワード、APIキー）を `.env` として展開。
 3. **デプロイ (Docker Compose)**:
     * `docker-compose up -d` で3つのコンテナ (Nginx, API/FastAPI, DB/PostgreSQL) を起動。
@@ -208,15 +202,15 @@ Oracle Cloud Infrastructure (OCI) のリソース管理を担当します。Alwa
 
 #### ディレクトリ構成 (`terraform/`)
 
-*   **`main.tf`**: プロジェクト全体のプロバイダ設定や基本構成。
-*   **`compute.tf`**: コンピュートインスタンス (VM.Standard.A1.Flex) の定義。
-    *   *設計ポイント*: 4 OCPU, 24GB RAMの最大スペックを指定し、Cloud-initによる初期設定を紐づけ。
-*   **`network.tf`**: VCN, Subnet, Internet Gateway, Security List等のネットワークリソース。
-    *   *設計ポイント*: パブリックサブネットへの配置と、HTTP(80)/SSH(22)の許可設定。
-*   **`cloud-init.yaml`**: インスタンス起動時の初期設定スクリプト。
-    *   *役割*: 必要パッケージのインストール、ユーザー設定、タイムゾーン設定等。
-*   **`variables.tf` / `outputs.tf`**: 変数定義と出力値の設定。
-*   **`versions.tf`**: プロバイダのバージョン固定とTerraform Cloud設定。
+* **`main.tf`**: プロジェクト全体のプロバイダ設定や基本構成。
+* **`compute.tf`**: コンピュートインスタンス (VM.Standard.A1.Flex) の定義。
+  * *設計ポイント*: 4 OCPU, 24GB RAMの最大スペックを指定し、Cloud-initによる初期設定を紐づけ。
+* **`network.tf`**: VCN, Subnet, Internet Gateway, Security List等のネットワークリソース。
+  * *設計ポイント*: パブリックサブネットへの配置と、HTTP(80)/SSH(22)の許可設定。
+* **`cloud-init.yaml`**: インスタンス起動時の初期設定スクリプト。
+  * *役割*: 必要パッケージのインストール、ユーザー設定、タイムゾーン設定等。
+* **`variables.tf` / `outputs.tf`**: 変数定義と出力値の設定。
+* **`versions.tf`**: プロバイダのバージョン固定とTerraform Cloud設定。
 
 ### 7.2. Ansible (構成管理・デプロイ)
 
@@ -236,14 +230,14 @@ ansible/
     └── app_deploy           # アプリケーションのデプロイとCron設定
 ```
 
-### 7.3. 定期実行アーキテクチャ (Host Cron)
+### 7.3. 定期実行アーキテクチャ (ホストCron)
 
 ニュース収集ジョブの定期実行には、外部サービスではなく**Host Cron (サーバー内部のCron)** を採用しています。
 
-*   **採用方式**: Linux標準の `cron` デーモン
-*   **設定箇所**: `ansible/roles/app_deploy/tasks/main.yml` (Ansibleにより自動設定)
-*   **実行コマンド**: `curl -s http://localhost:8000/api/news/collect`
-*   **選定理由**:
-    1.  **コスト**: OCIの外部トリガーサービスやスケジューラを利用する場合と異なり、完全無料かつ追加リソース不要。
-    2.  **セキュリティ**: `localhost` へのリクエストで完結するため、APIエンドポイントを外部(インターネット)に公開して認証を設ける必要がない。VCN内部で閉じているため安全。
-    3.  **シンプルさ**: サーバー内のログ (`/var/log/news_check/cron.log`) で実行結果を確認でき、運用が容易。
+* **採用方式**: Linux標準の `cron` デーモン
+* **設定箇所**: `ansible/roles/app_deploy/tasks/main.yml` (Ansibleにより自動設定)
+* **実行コマンド**: `curl -s -X POST http://localhost:8000/api/news/collect`
+* **選定理由**:
+    1. **コスト**: OCIの外部トリガーサービスやスケジューラを利用する場合と異なり、完全無料かつ追加リソース不要。
+    2. **安全性**: `localhost` へのリクエストで完結するため、APIエンドポイントを外部に公開する必要がない。
+    3. **シンプルさ**: サーバー内のログ (`/var/log/news_check/cron.log`) で実行結果を確認でき、運用が容易。
