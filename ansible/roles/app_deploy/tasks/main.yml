@@ -69,6 +69,7 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0644"
+  notify: Restart Nginx
 
 - name: Start Docker Compose
   community.docker.docker_compose_v2:

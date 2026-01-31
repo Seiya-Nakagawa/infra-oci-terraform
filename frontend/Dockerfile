@@ -9,8 +9,6 @@ RUN npm install
 
 # ソースコードのコピーとビルド
 COPY . .
-# 外部からのAPI通信を相対パスで行うため、空文字をセット（Nginx経由前提）
-ENV NEXT_PUBLIC_API_URL=""
 RUN npm run build
 
 # Production stage
