@@ -28,11 +28,6 @@ server {
     # Docker DNS resolver
     resolver 127.0.0.11 valid=30s;
 
-    # ルートからのリダイレクト
-    location = / {
-        return 301 https://$host/news;
-    }
-
     # フロントエンドへのプロキシ
     location /news {
         set $upstream_frontend frontend;
