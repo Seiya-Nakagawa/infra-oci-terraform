@@ -14,13 +14,14 @@ function NewsContent() {
 
   // URLクエリパラメータから日付を取得 (YYYY-MM-DD)
   const dateParam = searchParams.get('date');
-
   const fetchDailyDigest = async (targetDate?: string) => {
     try {
       setIsLoading(true);
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? '';
 
-      let url = `${apiUrl}/api/news/daily`;
+      // 本番環境（basePath='/news'）での相対パス対応
+      const apiPath = apiUrl ? `${apiUrl}/api` : '/news/api';
+      let url = `${apiPath}/news/daily`;
       if (targetDate) {
         url += `?target_date=${targetDate}`;
       }
