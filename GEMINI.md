@@ -1,29 +1,28 @@
-# news_check プロジェクト規約
+# infra-oci-terraform プロジェクト規約
 
-本ファイルは、news_check リポジトリ特有のコーディング規約およびワークフローを定めたものです。グローバルな規約（`user_global`）を補完し、本プロジェクトにおいて優先的に適用されます。
+本ファイルは、OCI（Oracle Cloud Infrastructure）インフラ管理リポジトリ特有のコーディング規約およびワークフローを定めたものです。グローバルな規約を補完し、本プロジェクトにおいて優先的に適用されます。
 
-## 1. ワークフロー自動化規約（補足）
+## 1. ワークフロー規約
 
-グローバルなワークフローに加え、本プロジェクトでは以下の点に注意してください。
+1. **Terraform操作**:
+   * 原則として Terraform Cloud (VCS-driven workflow) による自動デプロイを推奨します。
+   * ローカルで実行する場合は、必ず `terraform plan` で変更内容を慎重に確認してから `terraform apply` を行ってください。
+2. **変更の検証**:
+   * コード修正後は `terraform fmt -check` および `terraform validate` を実行し、構文と構成の妥当性を確認してください。
+3. **コミット規約**:
+   * インフラ構成の変更は、影響範囲が大きいため、コミットメッセージに「何を変更し、なぜ変更したか」を明記してください。
 
-1. **認証確認**:
-   * OCI上での動作確認やデプロイを伴う場合は、必要に応じて `oci iam region-subscription list` 等で認証状態を確認してください。
-2. **動作確認・検証**:
-   * Docker環境の修正を行った場合は、必ず `docker compose -f docker-compose.yml -f docker-compose.dev.yml config` 等で設定の妥当性を確認してください。
-   * インフラ構成に関わる変更（Container起動設定等）の場合は、ローカルでの起動確認を推奨します。
-3. **デプロイ**:
-   * 本番環境への反映は、PRのマージ後に GitHub Actions または Ansible を通じて行われます。
+## 2. セキュリティ規約
 
-## 2. 開発環境の操作
+1. **機密情報の保護**:
+   * `*.tfvars`、`*.pem`、`.env` などの機密情報を含むファイルは絶対にコミットしないでください。
+   * 認証情報は環境変数または Terraform Cloud の Variable (Sensitive) として管理してください。
+2. **最小権限の原則**:
+   * セキュリティ・リストやIAMポリシーの変更時は、必要最小限の権限付与にとどめるよう設計してください。
 
-* **コンテナ起動**:
+## 3. 構成管理
 
-  ```bash
-  docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
-  ```
-
-* **コンテナ停止**:
-
-  ```bash
-  docker compose -f docker-compose.yml -f docker-compose.dev.yml down
-  ```
+* **ディレクトリ構成**:
+  * ルートディレクトリに Terraform 構成ファイルを配置します。
+* **命名規則**:
+  * リソース名はケバブケース (`kebab-case`) またはスネークケース (`snake_case`) で一貫性を持たせてください。

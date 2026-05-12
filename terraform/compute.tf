@@ -58,6 +58,7 @@ resource "oci_core_instance" "news_check_instance" {
     prevent_destroy = true
     ignore_changes = [
       source_details[0].source_id, # OSイメージの更新を無視
+      metadata,                    # メタデータの変更による再作成を無視
     ]
   }
 }

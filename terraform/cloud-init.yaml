@@ -22,3 +22,5 @@ final_message: |
   User '${instance_user}' has been created.
   The instance is now ready to be configured by Ansible from your local machine (WSL).
   Please update ansible/inventory/hosts.yml with the public IP and run the playbook.
+
+#
