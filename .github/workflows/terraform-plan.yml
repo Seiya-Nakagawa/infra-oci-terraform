@@ -6,7 +6,7 @@ on:
     paths:
       - "**.tf"
       - "**.tfvars"
-      - "cloud-init.yaml"
+      - "terraform/cloud-init.yaml"
 
 permissions:
   contents: read
@@ -15,6 +15,10 @@ jobs:
   terraform-plan:
     name: Terraform Plan
     runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: terraform
 
     steps:
       - name: Checkout
