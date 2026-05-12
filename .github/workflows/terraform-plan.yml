@@ -4,7 +4,9 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
-      - "terraform/**"
+      - "**.tf"
+      - "**.tfvars"
+      - "cloud-init.yaml"
 
 permissions:
   contents: read
@@ -13,10 +15,6 @@ jobs:
   terraform-plan:
     name: Terraform Plan
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: terraform
 
     steps:
       - name: Checkout

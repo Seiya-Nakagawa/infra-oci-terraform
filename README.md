@@ -1,189 +1,195 @@
-# News Check
+# infra-oci-terraform - OCI Infrastructure
 
-**毎日のニュースチェックを、もっとスマートに。**
+このリポジトリは、Oracle Cloud Infrastructure (OCI) のインフラ構成を管理するためのTerraformプロジェクトです。
 
-News Checkは、YouTube上のニュース動画を自動収集・要約し、短時間で効率的に情報をキャッチアップできるWebサービスです。
-AI (Gemini) がニュースの要点を構造化して提示するため、動画を全編視聴することなく、重要なトピックを素早く把握できます。
+## 📋 構成内容
 
-## ✨ 特徴
+- **Compute Instance**: VM.Standard.A1.Flex (ARM64, 4 OCPU, 24GB RAM) - Always Free枠
+- **OS**: Ubuntu 24.04 LTS (ARM64)
+- **Storage**: 200GB Boot Volume
+- **Network**:
+  - VCN (Virtual Cloud Network)
+  - Public Subnet
+  - Internet Gateway
+  - Security List (ファイアウォールルール)
 
-* **完全自動化**: 毎日決まった時間にYouTube (ANNnewsCH) からニュース動画を自動収集。
-* **AI要約**: Gemini APIを活用し、動画の内容を「タイトル」「重要ポイント」「詳細」に構造化して要約。
-* **効率的なUI**: クリーンでモダンなデザインのダッシュボードで、その日のニュースを一目で確認。
-* **動画視聴もスムーズ**: 気になるニュースは、埋め込みプレーヤーでその場で視聴可能。
+## 🚀 推奨: Terraform Cloud を使用する（VCS-driven workflow）
 
-## 🛠 技術スタック
+**このプロジェクトでは、Terraform CloudとGitHubの連携を推奨しています。**
 
-本プロジェクトは、モダンなWeb技術とクラウドインフラを組み合わせて構築されています。
+詳細なセットアップ手順は **[TERRAFORM_CLOUD_SETUP.md](./TERRAFORM_CLOUD_SETUP.md)** を参照してください。
 
-* **Frontend**: [Next.js](https://nextjs.org/) (React)
-  * UI Library: Tailwind CSS (一部), Custom CSS modules
-* **Backend**: [Python](https://www.python.org/) ([FastAPI](https://fastapi.tiangolo.com/))
-  * Scheduler: APScheduler
-* **Database**: [PostgreSQL 16](https://www.postgresql.org/)
-* **AI Model**: Google Gemini API
-* **External API**: YouTube Data API v3
-* **Infrastructure**: Oracle Cloud Infrastructure (OCI) Always Free (ARM Architecture)
-* **IaC / Configuration**: Terraform, Ansible
-* **Containerization**: Docker, Docker Compose
+### メリット
 
-## 🏗 システムアーキテクチャ
+✅ **セキュアな認証情報管理**: 秘密鍵などの機密情報をローカルに保存する必要がない
+✅ **自動デプロイ**: GitHubにプッシュするだけで自動的にPlan/Applyが実行される
+✅ **チーム開発**: Stateの共有とロックが自動管理される
+✅ **監査ログ**: すべての変更履歴が記録される
+✅ **無料枠**: 個人利用は無料
 
-```mermaid
-graph TD
-    User([ユーザー]) -->|HTTPS| Nginx[Nginx / Reverse Proxy]
+---
 
-    subgraph Docker Containers
-        Nginx -->|Frontend| NextJS[Next.js App]
-        Nginx -->|API Request| Backend[FastAPI App]
-        Backend -->|Query/Save| DB[(PostgreSQL)]
-    end
+## 💻 (参考) ローカルでの実行方法
 
-    subgraph External Services
-        Backend -->|News Search| YouTube[YouTube Data API]
-        Backend -->|AI Summary| Gemini[Google Gemini API]
-    end
-```
+以下は、Terraform Cloudを使わずにローカルで実行する場合の手順です。
 
-## 🚀 環境構築 (Local Development)
+### 1. 前提条件
 
-ローカル環境でアプリケーションを起動するための手順です。
+- [Terraform](https://www.terraform.io/downloads) がインストールされていること (>= 1.0.0)
+- OCIアカウントとAPI認証情報が設定済みであること
+- SSH鍵ペアが生成済みであること
 
-### 前提条件
+### 2. OCI API認証情報の準備
 
-* Docker Desktop (または Docker Engine + Docker Compose)
-* Git
-
-### セットアップ手順
-
-1. **リポジトリのクローン**
-
-    ```bash
-    git clone https://github.com/Seiya-Nakagawa/news_check.git
-    cd news_check
-    ```
-
-2. **環境変数の設定**
-
-    プロジェクトルートに `.env` ファイルを作成し、必要な設定を記述します。
-    `.env.example` があればそれをコピーして使用してください。
-
-    ```bash
-    cp .env.example .env
-    ```
-
-    **主な設定項目:**
-    * `GEMINI_API_KEY`: Google Gemini APIキー
-    * `YOUTUBE_API_KEY`: YouTube Data APIキー
-    * `POSTGRES_USER` / `POSTGRES_PASSWORD`: データベース接続情報
-
-3. **コンテナのビルドと起動**
-
-    ```bash
-    # 開発用設定 (ホットリロード有効) を適用して起動
-    docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
-    ```
-
-    > **Note**: 本番環境向けのデフォルト設定 (`docker-compose.yml` 単体) では、パフォーマンスとセキュリティ向上のため、Next.js のビルド済み成果物を使用し、ソースコードの同期が無効化されています。ローカル開発では必ず `docker-compose.dev.yml` を併用してください。
-
-4. **動作確認**
-
-    ブラウザで以下のURLにアクセスして確認します。
-    * **Frontend**: [http://localhost:3000](http://localhost:3000)
-    * **Backend API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
-
-5. **ニュース手動収集 (Manual Extraction)**
-
-    定期実行を待たずに、直ちにニュースを収集・要約したい場合は以下のコマンドを実行してください。
-
-    ```bash
-    curl -X POST http://localhost:8000/api/news/collect
-    ```
-
-    成功すると、処理結果 (処理件数など) がJSON形式で返却されます。
-
-## 🌐 インフラ操作と接続 (Infrastructure & Operation)
-
-本プロジェクトは OCI (Oracle Cloud Infrastructure) 上で稼働しています。
-
-### インスタンスへの SSH 接続
-
-開発者向けの SSH 接続手順です。セキュリティ・リストでポート 22 を開放している場合、以下のコマンドで直接ログインできます。
+#### 2.1. API鍵の生成
 
 ```bash
-# WSL (Ubuntu) 等のローカル環境から接続
-ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -i ~/.ssh/id_rsa seiya@217.142.230.83
+# ディレクトリ作成
+mkdir -p ~/.oci
+
+# 秘密鍵の生成
+openssl genrsa -out ~/.oci/oci_api_key.pem 2048
+
+# 公開鍵の生成
+openssl rsa -pubout -in ~/.oci/oci_api_key.pem -out ~/.oci/oci_api_key_public.pem
+
+# パーミッション設定
+chmod 600 ~/.oci/oci_api_key.pem
 ```
 
-> **Note**: 古い RSA キーを使用している、または OpenSSH の最新バージョンを使用している場合に備え、アルゴリズムを明示的に指定しています。
+#### 2.2. OCIコンソールでAPI鍵を登録
 
-### ログの確認
+1. OCI Console にログイン
+2. 右上のプロファイルアイコン → **User Settings**
+3. 左メニューの **API Keys** → **Add API Key**
+4. `~/.oci/oci_api_key_public.pem` の内容を貼り付け
+5. Fingerprintをメモ
 
-アプリケーションの動作ログ（初期構築時の cloud-init 等）を確認するには、ログイン後に以下のコマンドを実行します。
+#### 2.3. 必要なOCIDの取得
+
+- **Tenancy OCID**: OCI Console右上のプロファイル → Tenancy: [名前] → OCID をコピー
+- **User OCID**: OCI Console右上のプロファイル → User Settings → OCID をコピー
+- **Compartment OCID**: Identity → Compartments → 使用するCompartment → OCID をコピー
+
+### 3. 変数ファイルの作成
 
 ```bash
-tail -f /var/log/cloud-init-output.log
+cp terraform.tfvars.example terraform.tfvars
 ```
 
-## デプロイ・構成管理 (Ansible)
+`terraform.tfvars` を編集して、実際の値を設定してください：
 
-Ansibleを使用して、ローカル環境（WSL）および本番環境（OCI）のセットアップとデプロイを自動化します。
-
-### ローカル環境 (WSL)
-
-ローカル環境の各種コンポーネントをセットアップします。
-
-* **ドライラン (確認のみ)**:
-
-  ```bash
-  sudo ansible-playbook -i ansible/inventory/hosts.yml ansible/playbook.yml --limit local --check
-  ```
-
-* **実行 (適用)**:
-
-  ```bash
-  sudo ansible-playbook -i ansible/inventory/hosts.yml ansible/playbook.yml --limit local
-  ```
-
-### 本番環境 (OCI)
-
-OCI インスタンスへのデプロイとセットアップを行います。
-
-* **ドライラン (確認のみ)**:
-
-  ```bash
-  ansible-playbook -i ansible/inventory/hosts.yml ansible/playbook.yml --limit prod --check
-  ```
-
-* **実行 (適用)**:
-
-  ```bash
-  ansible-playbook -i ansible/inventory/hosts.yml ansible/playbook.yml --limit prod
-  ```
-
-> **Note**: 本番環境への実行前には、`ansible/inventory/hosts.yml` の `ansible_host` が正しいIPアドレス（`217.142.230.83`）になっていることを確認してください。
-
-## 📂 プロジェクト構成
-
-```text
-.
-├── backend/        # Python FastAPI アプリケーション (API, バッチ処理)
-├── frontend/       # Next.js フロントエンドアプリケーション
-├── terraform/      # インフラ構築 (OCI/Terraform)
-├── ansible/        # 構成管理 (Ansible)
-├── k8s/            # Kubernetes マニフェスト
-├── nginx/          # Nginx 設定
-├── docs/           # 設計書・ドキュメント (DESIGN.md, REQUIREMENTS.md)
-└── docker-compose.yml
+```hcl
+tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaaa..."
+user_ocid        = "ocid1.user.oc1..aaaaaaaa..."
+fingerprint      = "aa:bb:cc:dd:..."
+private_key      = <<-EOT
+-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEA...
+(秘密鍵の内容)
+-----END RSA PRIVATE KEY-----
+EOT
+region           = "ap-tokyo-1"
+compartment_ocid = "ocid1.compartment.oc1..aaaaaaaa..."
+ssh_public_key   = "ssh-rsa AAAAB3NzaC1yc2E..."
 ```
 
-## 📝 ドキュメント
+### 4. Terraform実行
 
-プロジェクトの詳細な仕様については、`docs/` ディレクトリ内の以下のファイルを参照してください。
+```bash
+# 初期化
+terraform init
 
-* [**REQUIREMENTS.md**](docs/REQUIREMENTS.md): 要件定義書
-* [**DESIGN.md**](docs/DESIGN.md): 基本設計書、システム構成図
+# 実行計画の確認
+terraform plan
 
-## 📜 License
+# リソースの作成
+terraform apply
 
-[MIT License](LICENSE)
+# 確認プロンプトで "yes" を入力
+```
+
+### 5. 出力の確認
+
+```bash
+# 作成されたリソースの情報を表示
+terraform output
+
+# SSH接続
+terraform output -raw ssh_connection_command
+# 出力例: ssh ubuntu@xxx.xxx.xxx.xxx
+```
+
+## 🔧 Terraform Cloud を使用する場合
+
+### 1. `versions.tf` の編集
+
+```hcl
+terraform {
+  cloud {
+    organization = "your-organization-name"
+    workspaces {
+      name = "news-check-production"
+    }
+  }
+  # ...
+}
+```
+
+### 2. Terraform Cloud で変数を設定
+
+Workspace の **Variables** セクションで以下を設定：
+
+**Terraform Variables**:
+- `tenancy_ocid` (Sensitive: ✓)
+- `user_ocid` (Sensitive: ✓)
+- `fingerprint` (Sensitive: ✓)
+- `private_key_path` → Terraform Cloudでは使えないため、代わりに `private_key` として秘密鍵の内容を設定
+- `region`
+- `compartment_ocid`
+- `ssh_public_key` (Sensitive: ✓)
+
+**注意**: Terraform Cloudを使用する場合、`private_key_path` の代わりに `private_key` 変数を使用するように `variables.tf` と `versions.tf` の修正が必要です。
+
+### 3. VCS連携
+
+GitHubリポジトリと連携して、プッシュ時に自動で `terraform plan` と `terraform apply` を実行できます。
+
+## 🔐 セキュリティ
+
+- **機密情報の管理**: `terraform.tfvars` は `.gitignore` に含まれており、Gitにコミットされません
+- **SSH制限**: 本番環境では `allowed_ssh_cidr` を自分のIPアドレスに制限することを推奨
+- **API鍵の管理**: 秘密鍵ファイルは適切なパーミッション (600) で保護してください
+
+## 📝 リソースの削除
+
+```bash
+terraform destroy
+
+# 確認プロンプトで "yes" を入力
+```
+
+## 🔍 トラブルシューティング
+
+### エラー: "Service error:NotAuthorizedOrNotFound"
+
+- Compartment OCIDが正しいか確認
+- ユーザーに適切な権限が付与されているか確認
+
+### エラー: "Out of host capacity"
+
+- 別のAvailability Domainを試す
+- 別のリージョンを試す
+- 時間を空けて再試行
+
+### インスタンスにSSH接続できない
+
+- Security Listのルールを確認
+- SSH公開鍵が正しく設定されているか確認
+- インスタンスの起動が完了しているか確認 (cloud-initの実行完了まで数分かかる場合があります)
+
+## 📚 参考リンク
+
+- [OCI Provider Documentation](https://registry.terraform.io/providers/oracle/oci/latest/docs)
+- [OCI Always Free Resources](https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm)
+- [Terraform Best Practices](https://www.terraform-best-practices.com/)
