@@ -5,8 +5,8 @@
 ## 1. ワークフロー規約
 
 1. **Terraform操作**:
-   * 原則として Terraform Cloud (VCS-driven workflow) による自動デプロイを推奨します。
-   * ローカルで実行する場合は、必ず `terraform plan` で変更内容を慎重に確認してから `terraform apply` を行ってください。
+   * 原則として Terraform Cloud (CLI-driven workflow) をリモートバックエンドとして利用し、ローカルから `terraform` コマンドで操作・実行する運用とします。
+   * ローカルで実行する際は、必ず `terraform plan` で変更内容を慎重に確認してから `terraform apply` を行ってください。
 2. **変更の検証**:
    * コード修正後は `terraform fmt -check` および `terraform validate` を実行し、構文と構成の妥当性を確認してください。
 3. **コミット規約**:

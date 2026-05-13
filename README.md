@@ -18,7 +18,7 @@
   * 運用管理のためのセキュアな経路として、OCI Bastion サービスを利用したアクセス基盤を設ける。（インターネットからの直接の SSH 接続は許可しない）
 * **運用・保守要件**:
   * インフラの構成管理は Terraform を用いてコード化し、再現性を担保する。
-  * Terraform Cloud を用いた VCS（GitHub）連携による自動デプロイを前提とする。
+  * CLI-driven workflow を前提とし、ローカルから `terraform login` を経由して実行する運用とする。
   * Terraform (cloud-init) による初期化は OS レベルの最小限の設定（タイムゾーン、管理ユーザーの作成と SSH 鍵登録）に留め、ミドルウェアやアプリケーションの詳細な構成管理は Ansible 等の構成管理ツールへ委譲する。
 
 ## 🏗️ 基本設計
@@ -59,18 +59,18 @@
 * Terraform 側でのインスタンス破棄（`destroy`）時は Boot Volume も併せて削除される（誤操作防止のため `prevent_destroy = true` 設定あり）。
 * ミドルウェア等のプロビジョニングは、本番運用においては Ansible 等を用いて実行する前提。
 
-## 🚀 推奨: Terraform Cloud を使用する（VCS-driven workflow）
+## 🚀 Terraform Cloud を利用したローカル実行 (CLI-driven workflow)
 
-**このプロジェクトでは、Terraform CloudとGitHubの連携を推奨しています。**
+このプロジェクトでは、Terraform Cloud をリモートバックエンドとして利用し、ローカルから `terraform` コマンドを実行する **CLI-driven workflow** を採用しています。
 
-詳細なセットアップ手順は **[TERRAFORM_CLOUD_SETUP.md](./TERRAFORM_CLOUD_SETUP.md)** を参照してください。
+詳細なセットアップ・実行手順は **[TERRAFORM_CLOUD_SETUP.md](./TERRAFORM_CLOUD_SETUP.md)** を参照してください。
 
 ### メリット
 
-✅ **セキュアな認証情報管理**: 秘密鍵などの機密情報をローカルに保存する必要がない
-✅ **自動デプロイ**: GitHubにプッシュするだけで自動的にPlan/Applyが実行される
-✅ **チーム開発**: Stateの共有とロックが自動管理される
-✅ **監査ログ**: すべての変更履歴が記録される
+✅ **Stateのセキュアな管理**: tfstate が Terraform Cloud 上で暗号化・管理され、ローカルに保持する必要がない
+✅ **チーム開発**: Stateのロックと共有が自動管理される
+✅ **監査ログ**: Plan/Applyの実行履歴が Terraform Cloud に記録される
+✅ **セキュアな環境変数管理**: OCIの認証情報などを Terraform Cloud 側に保持可能
 ✅ **無料枠**: 個人利用は無料
 
 ---

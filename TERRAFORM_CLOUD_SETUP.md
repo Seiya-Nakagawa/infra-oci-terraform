@@ -1,6 +1,6 @@
 # Terraform Cloud セットアップガイド
 
-このガイドでは、Terraform CloudとGitHubを連携させて、VCS-driven workflowでNews CheckアプリケーションをOCIにデプロイする方法を説明します。
+このガイドでは、Terraform Cloud をリモートバックエンドとして利用し、ローカルから `terraform` コマンドで OCI 上にインフラをデプロイする **CLI-driven workflow** の手順を説明します。
 
 ## 📋 前提条件
 
@@ -57,14 +57,9 @@ chmod 600 ~/.oci/oci_api_key.pem
 #### 2.2. Workspace の作成
 
 1. **New Workspace** をクリック
-2. **Version control workflow** を選択
-3. GitHubを選択し、認証
-4. リポジトリ `news_check` を選択
-5. Workspace名を入力: `news-check-production`
-6. **Advanced options** で以下を設定:
-   - **Terraform Working Directory**: `terraform`
-   - **VCS branch**: `main` (または使用するブランチ)
-7. **Create workspace** をクリック
+2. **CLI-driven workflow** を選択
+3. Workspace名を入力: `news-check-production` (※既存のWorkspaceがある場合はそれを利用し、versions.tfの記載に合わせます)
+4. **Create workspace** をクリック
 
 #### 2.3. Variables の設定
 
@@ -119,32 +114,40 @@ terraform {
 }
 ```
 
-### 4. GitHubへプッシュ
+### 4. ローカルからの実行 (CLI-driven)
+
+CLI-driven workflow では、GitHubへのPushで自動適用されることはありません。手動で以下の手順を実行します。
+
+#### 4.1. Terraform Cloud へのログイン
 
 ```bash
-cd /home/seiya/git/news_check
-git add terraform/
-git commit -m "feat: Terraform Cloud対応のOCIインフラ構成を追加"
-git push origin main
+terraform login
 ```
 
-### 5. デプロイの実行
+※ブラウザが開く（またはURLが表示される）ので、Terraform Cloud のトークンを発行してターミナルに貼り付けます。
 
-#### 5.1. 自動デプロイ (VCS-driven)
+#### 4.2. 初期化
 
-GitHubにプッシュすると、Terraform Cloudが自動的に以下を実行します：
+```bash
+cd /home/seiya/git/infra-oci-terraform/terraform
+terraform init
+```
 
-1. **Plan**: 変更内容を確認
-2. **Apply待機**: 承認待ち状態になる
-3. Terraform Cloud UIで **Confirm & Apply** をクリック
-4. リソースが作成される
+#### 4.3. 実行計画の確認 (Plan)
 
-#### 5.2. 手動デプロイ
+```bash
+terraform plan
+```
 
-Terraform Cloud UIから手動で実行することもできます：
+※このコマンドを実行すると、Terraform Cloud 上で処理が行われ、結果がローカルのターミナルに表示されます。
 
-1. Workspace → **Actions** → **Start new plan**
-2. Planが完了したら **Confirm & Apply**
+#### 4.4. デプロイの実行 (Apply)
+
+```bash
+terraform apply
+```
+
+※Plan の結果が問題なければ `yes` を入力して適用します。
 
 ### 6. 出力値の確認
 
@@ -181,16 +184,16 @@ Terraform Cloudでは、Stateファイルは自動的に暗号化され、安全
 
 ### 通常の変更
 
-1. ローカルでTerraformコードを編集
-2. GitHubにプッシュ
-3. Terraform Cloudが自動でPlanを実行
-4. UIで内容を確認して **Confirm & Apply**
+1. ローカルで Terraform コードを編集
+2. `terraform plan` を実行して変更内容を確認
+3. `terraform apply` を実行して反映
+4. 変更が完了したら、Git にコミットして Push（変更の履歴管理のため）
 
 ### 緊急時のロールバック
 
-1. GitHubで前のコミットに戻す
-2. Terraform Cloudが自動でPlanを実行
-3. **Confirm & Apply** で適用
+1. Gitの履歴から、戻したい状態のコミットをチェックアウト、またはコードを修正
+2. `terraform plan` で元に戻ることを確認
+3. `terraform apply` で適用
 
 ### リソースの削除
 
@@ -214,13 +217,12 @@ Terraform Cloudでは、Stateファイルは自動的に暗号化され、安全
 
 ### Planが実行されない
 
-- GitHubとの連携が正しく設定されているか確認
-- **Working Directory** が `terraform` に設定されているか確認
-- VCS branchが正しいか確認
+- `terraform login` が正しく完了しているか確認（`~/.terraform.d/credentials.tfrc.json` の有無など）
+- `versions.tf` の Organization 名と Workspace 名が正しいか確認
 
 ## 📚 参考リンク
 
 - [Terraform Cloud Documentation](https://developer.hashicorp.com/terraform/cloud-docs)
-- [VCS-Driven Workflow](https://developer.hashicorp.com/terraform/cloud-docs/run/ui)
+- [CLI-Driven Workflow](https://developer.hashicorp.com/terraform/cloud-docs/run/cli)
 - [OCI Provider Documentation](https://registry.terraform.io/providers/oracle/oci/latest/docs)
 - [Variable Sets](https://developer.hashicorp.com/terraform/cloud-docs/workspaces/variables/managing-variables#variable-sets)
