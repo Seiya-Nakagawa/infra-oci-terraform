@@ -88,7 +88,13 @@ variable "subnet_cidr_block" {
 
 # アプリケーション設定
 variable "allowed_ssh_cidr" {
-  description = "CIDR block allowed to SSH to the instance (default: anywhere - change for production)"
+  description = "CIDR block allowed to SSH directly to the instance public IP (default: 0.0.0.0/0)"
+  type        = string
+  default     = "0.0.0.0/0"
+}
+
+variable "allowed_client_cidr" {
+  description = "CIDR block allowed to connect to the Bastion service (Your home IP)"
   type        = string
   default     = "0.0.0.0/0"
 }
