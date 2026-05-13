@@ -2,62 +2,11 @@
 
 このリポジトリは、Oracle Cloud Infrastructure (OCI) のインフラ構成を管理するためのTerraformプロジェクトです。
 
-## 📋 要件定義
+## 📋 ドキュメント
 
-### システムの目的
-
-個人開発における複数のサービスを公開・稼働させるための共通基盤を OCI 上に構築する。
-将来的な機能拡張やコンテナの稼働も見据え、十分なリソースを確保しつつ運用コストを最適化する。
-
-### インフラ要件
-
-* **コスト要件**: ランニングコストを最小限に抑えるため、OCI の Always Free 枠（VM.Standard.A1.Flex、200GB Boot Volume など）を最大限に活用する。
-* **パフォーマンス・リソース要件**: ARM アーキテクチャの A1.Flex シェイプを利用し、4 OCPU / 24GB RAM の高いスペックを確保する。OS は長期サポート版の Ubuntu 24.04 LTS を採用する。
-* **ネットワーク・セキュリティ要件**:
-  * インターネット経由での Web アクセス（HTTP:80, HTTPS:443）を許可する。
-  * 運用管理のためのセキュアな経路として、OCI Bastion サービスを利用したアクセス基盤を設ける。（インターネットからの直接の SSH 接続は許可しない）
-* **運用・保守要件**:
-  * インフラの構成管理は Terraform を用いてコード化し、再現性を担保する。
-  * CLI-driven workflow を前提とし、ローカルから `terraform login` を経由して実行する運用とする。
-  * Terraform (cloud-init) による初期化は OS レベルの最小限の設定（タイムゾーン、管理ユーザーの作成と SSH 鍵登録）に留め、ミドルウェアやアプリケーションの詳細な構成管理は Ansible 等の構成管理ツールへ委譲する。
-
-## 🏗️ 基本設計
-
-### システム構成概要
-
-インターネットから Internet Gateway を経由してアクセス可能な Public Subnet 内に、Compute Instance を単一構成で配置します。
-
-### リソース設計
-
-#### 1. ネットワーク (VCN)
-
-* **VCN / サブネット**: Public Subnet × 1構成
-* **ルーティング**: デフォルトルート (`0.0.0.0/0`) を Internet Gateway に向ける。
-* **セキュリティリスト (ファイアウォール)**:
-  * **Ingress (受信)**: TCP 80 (HTTP), TCP 443 (HTTPS), ICMP (Ping) ※SSH(TCP:22)は直接許可せずBastion経由
-  * **Egress (送信)**: すべてのトラフィック (`0.0.0.0/0`) を許可
-
-#### 2. コンピュート (Compute Instance)
-
-* **シェイプ**: `VM.Standard.A1.Flex` (ARM64, 4 OCPU, 24 GB RAM)
-* **OS イメージ**: Ubuntu 24.04 LTS (ARM64)
-* **ストレージ (Boot Volume)**: 200 GB (Always Free 枠の最大値)
-* **ネットワーク**: Public Subnet に配置し、パブリック IP を自動割り当て。
-* **初期化設定 (cloud-init)**:
-  * タイムゾーンを `Asia/Tokyo` に設定。
-  * 管理ユーザーを作成し、sudo 権限および docker グループを付与。
-  * SSH 公開鍵を `authorized_keys` に登録。
-* **Oracle Cloud Agent**: Bastion 用プラグインを有効化。
-
-#### 3. セキュリティ・管理機能
-
-* **OCI Bastion Service (STANDARD)** を Public Subnet に配置し、動的なクライアント IP 環境からでもセキュアにコンピュートインスタンスへアクセス可能とする。
-
-### 制約事項・前提条件
-
-* 本構成は OCI Always Free 枠の制限事項（コンピュートリソース、ブロックボリューム容量など）に依存している。
-* Terraform 側でのインスタンス破棄（`destroy`）時は Boot Volume も併せて削除される（誤操作防止のため `prevent_destroy = true` 設定あり）。
-* ミドルウェア等のプロビジョニングは、本番運用においては Ansible 等を用いて実行する前提。
+* **[要件定義書](docs/要件定義書.md)**: システムの目的、各種要件（インフラ、コスト、ネットワークなど）
+* **[基本設計書](docs/基本設計書.md)**: システム構成、リソース設計、制約事項など
+* **[Terraform Cloud セットアップ](TERRAFORM_CLOUD_SETUP.md)**: Workspace の詳細な設定手順やトラブルシューティング
 
 ## 🚀 Terraform Cloud を利用したローカル実行 (CLI-driven workflow)
 
