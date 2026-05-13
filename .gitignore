@@ -37,3 +37,7 @@ terraform.rc
 # OS specific files
 .DS_Store
 Thumbs.db
+
+# Script generated files
+terraform/tfplan
+terraform/tfplan.log
