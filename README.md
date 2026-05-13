@@ -75,132 +75,38 @@
 
 ---
 
-## 💻 (参考) ローカルでの実行方法
+## 💻 実行手順
 
-以下は、Terraform Cloudを使わずにローカルで実行する場合の手順です。
+本プロジェクトは Terraform Cloud を利用した CLI-driven ワークフローを前提としています。
 
-### 1. 前提条件
-
-* [Terraform](https://www.terraform.io/downloads) がインストールされていること (>= 1.0.0)
-* OCIアカウントとAPI認証情報が設定済みであること
-* SSH鍵ペアが生成済みであること
-
-### 2. OCI API認証情報の準備
-
-#### 2.1. API鍵の生成
+### 1. Terraform Cloud へのログイン
 
 ```bash
-# ディレクトリ作成
-mkdir -p ~/.oci
-
-# 秘密鍵の生成
-openssl genrsa -out ~/.oci/oci_api_key.pem 2048
-
-# 公開鍵の生成
-openssl rsa -pubout -in ~/.oci/oci_api_key.pem -out ~/.oci/oci_api_key_public.pem
-
-# パーミッション設定
-chmod 600 ~/.oci/oci_api_key.pem
+terraform login
 ```
 
-#### 2.2. OCIコンソールでAPI鍵を登録
+※ブラウザが開く（またはURLが表示される）ので、トークンを発行してターミナルに貼り付けます。
 
-1. OCI Console にログイン
-2. 右上のプロファイルアイコン → **User Settings**
-3. 左メニューの **API Keys** → **Add API Key**
-4. `~/.oci/oci_api_key_public.pem` の内容を貼り付け
-5. Fingerprintをメモ
+### 2. 環境変数の設定 (Terraform Cloud)
 
-#### 2.3. 必要なOCIDの取得
+Terraform Cloud の GUI にアクセスし、該当 Workspace の Variables に OCI の認証情報（`tenancy_ocid`, `user_ocid`, `fingerprint`, `private_key` など）を登録してください。
+※詳細なセットアップ手順は **[TERRAFORM_CLOUD_SETUP.md](./TERRAFORM_CLOUD_SETUP.md)** をご参照ください。
 
-* **Tenancy OCID**: OCI Console右上のプロファイル → Tenancy: [名前] → OCID をコピー
-* **User OCID**: OCI Console右上のプロファイル → User Settings → OCID をコピー
-* **Compartment OCID**: Identity → Compartments → 使用するCompartment → OCID をコピー
-
-### 3. 変数ファイルの作成
+### 3. 初期化と実行
 
 ```bash
-cp terraform.tfvars.example terraform.tfvars
-```
-
-`terraform.tfvars` を編集して、実際の値を設定してください：
-
-```hcl
-tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaaa..."
-user_ocid        = "ocid1.user.oc1..aaaaaaaa..."
-fingerprint      = "aa:bb:cc:dd:..."
-private_key      = <<-EOT
------BEGIN RSA PRIVATE KEY-----
-MIIEpAIBAAKCAQEA...
-(秘密鍵の内容)
------END RSA PRIVATE KEY-----
-EOT
-region           = "ap-tokyo-1"
-compartment_ocid = "ocid1.compartment.oc1..aaaaaaaa..."
-ssh_public_key   = "ssh-rsa AAAAB3NzaC1yc2E..."
-```
-
-### 4. Terraform実行
-
-```bash
-# 初期化
+cd terraform
 terraform init
-
-# 実行計画の確認
 terraform plan
-
-# リソースの作成
 terraform apply
-
-# 確認プロンプトで "yes" を入力
 ```
 
-### 5. 出力の確認
+### 4. 出力の確認
 
 ```bash
 # 作成されたリソースの情報を表示
 terraform output
-
-# SSH接続
-terraform output -raw ssh_connection_command
-# 出力例: ssh ubuntu@xxx.xxx.xxx.xxx
 ```
-
-## 🔧 Terraform Cloud を使用する場合
-
-### 1. `versions.tf` の編集
-
-```hcl
-terraform {
-  cloud {
-    organization = "your-organization-name"
-    workspaces {
-      name = "news-check-production"
-    }
-  }
-  # ...
-}
-```
-
-### 2. Terraform Cloud で変数を設定
-
-Workspace の **Variables** セクションで以下を設定：
-
-**Terraform Variables**:
-
-* `tenancy_ocid` (Sensitive: ✓)
-* `user_ocid` (Sensitive: ✓)
-* `fingerprint` (Sensitive: ✓)
-* `private_key_path` → Terraform Cloudでは使えないため、代わりに `private_key` として秘密鍵の内容を設定
-* `region`
-* `compartment_ocid`
-* `ssh_public_key` (Sensitive: ✓)
-
-**注意**: Terraform Cloudを使用する場合、`private_key_path` の代わりに `private_key` 変数を使用するように `variables.tf` と `versions.tf` の修正が必要です。
-
-### 3. VCS連携
-
-GitHubリポジトリと連携して、プッシュ時に自動で `terraform plan` と `terraform apply` を実行できます。
 
 ## 🔐 セキュリティ
 
