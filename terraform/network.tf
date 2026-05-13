@@ -55,18 +55,7 @@ resource "oci_core_security_list" "news_check_security_list" {
     stateless   = false
   }
 
-  # Ingress Rule: SSH (22) - Public Access (Temporary or Restricted as needed)
-  ingress_security_rules {
-    protocol    = "6" # TCP
-    source      = "0.0.0.0/0"
-    stateless   = false
-    description = "Allow SSH access from anywhere"
 
-    tcp_options {
-      min = 22
-      max = 22
-    }
-  }
 
   # Ingress Rule: HTTP (80)
   ingress_security_rules {
