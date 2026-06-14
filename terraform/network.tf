@@ -68,18 +68,6 @@ resource "oci_core_security_list" "news_check_security_list" {
     }
   }
 
-  # Ingress Rule: SSH (22) - From VCN (Bastion)
-  ingress_security_rules {
-    protocol    = "6" # TCP
-    source      = var.vcn_cidr_block
-    stateless   = false
-    description = "Allow SSH access from VCN (for Bastion)"
-
-    tcp_options {
-      min = 22
-      max = 22
-    }
-  }
 
   # Ingress Rule: HTTP (80)
   ingress_security_rules {

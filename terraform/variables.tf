@@ -94,7 +94,7 @@ variable "allowed_ssh_cidr" {
 }
 
 variable "allowed_client_cidr" {
-  description = "CIDR block allowed to connect to the Bastion service (Your home IP)"
+  description = "CIDR block allowed to SSH directly to the instance (Your home IP)"
   type        = string
   default     = "0.0.0.0/0"
 }

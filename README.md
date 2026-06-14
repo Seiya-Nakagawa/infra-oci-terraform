@@ -6,7 +6,7 @@
 
 * **[要件定義書](docs/01.要件定義/要件定義書.md)**: システムの目的、各種要件（インフラ、コスト、ネットワークなど）
 * **[基本設計書](docs/02.設計/基本設計書.md)**: システム構成、リソース設計、制約事項など
-* **[Bastionアクセス手順書](docs/03.手順書/Bastionアクセス手順書.md)**: OCI Bastion を経由したセキュアなログイン手順
+* **[SSH接続手順書](docs/03.手順書/SSH接続手順書.md)**: パブリックIPを経由した直接 SSH 接続手順
 * **[Terraform Cloud セットアップ](TERRAFORM_CLOUD_SETUP.md)**: Workspace の詳細な設定手順やトラブルシューティング
 
 ## 🚀 Terraform Cloud を利用したローカル実行 (CLI-driven workflow)
