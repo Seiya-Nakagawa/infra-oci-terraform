@@ -10,7 +10,6 @@ export PYTHONWARNINGS="ignore" # Suppress OCI CLI warnings
 
 # --- Default Values ---
 SSH_PRIV_KEY_FILE="$HOME/.ssh/id_rsa"
-AUTO_CONNECT=false
 TTL=10800 # 3 hours in seconds
 
 # --- Help Message ---
@@ -18,16 +17,14 @@ show_help() {
     echo "Usage: $0 [options]"
     echo "Options:"
     echo "  -i <key_path>  SSH private key path (default: $HOME/.ssh/id_rsa)"
-    echo "  -c             Connect automatically after creating session"
     echo "  -t <seconds>   Session TTL in seconds (default: 10800)"
     echo "  -h             Show this help message"
 }
 
 # --- Parse Arguments ---
-while getopts "i:ct:h" opt; do
+while getopts "i:t:h" opt; do
     case "$opt" in
         i) SSH_PRIV_KEY_FILE=$OPTARG ;;
-        c) AUTO_CONNECT=true ;;
         t) TTL=$OPTARG ;;
         h) show_help; exit 0 ;;
         *) show_help; exit 1 ;;
@@ -125,10 +122,8 @@ if [ -n "$SSH_COMMAND" ] && [ "$SSH_COMMAND" != "null" ]; then
     echo "$EXEC_COMMAND"
     echo "--------------------------------------------------"
     
-    if [ "$AUTO_CONNECT" = true ]; then
-        echo "SSH接続を開始します..."
-        eval "$EXEC_COMMAND"
-    fi
+    echo "SSH接続を開始します..."
+    eval "$EXEC_COMMAND"
 else
     echo "Error: SSHコマンドの取得に失敗しました。セッション状態を確認してください。"
     echo "Session JSON: $SESSION_JSON"
